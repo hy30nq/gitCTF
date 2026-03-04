@@ -1,3 +1,23 @@
+__pycache__/
 *.pyc
-*.score
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Secrets
+.config.json
+.env
+
+# Temp files
+/tmp/
+*.zip.pgp
 score.html
+.score/
+
+# OS
+.DS_Store
+Thumbs.db

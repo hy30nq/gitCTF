@@ -1,0 +1,37 @@
+{
+    "player": "hy30nq",
+    "player_team": "instructor",
+    "score_board": "https://github.com/hy30nq/gitctf-scoreboard",
+    "repo_owner": "hy30nq",
+    "intended_pts": 10,
+    "unintended_pts": 100,
+    "round_frequency": 600,
+    "start_time": "2026-03-04T09:00:00+09:00",
+    "end_time": "2026-03-31T18:00:00+09:00",
+    "exploit_timeout": {
+        "injection_phase": 10,
+        "exercise_phase": 60
+    },
+    "teams": {
+        "alpha": {
+            "repo_name": "gitctf-team-alpha",
+            "pub_key_id": "",
+            "bug1": "efd18a6d2536469bc7c9d2110e54856df23a32d4"
+        },
+        "beta": {
+            "repo_name": "gitctf-team-beta",
+            "pub_key_id": "",
+            "bug1": ""
+        },
+        "instructor": {
+            "repo_name": "-",
+            "pub_key_id": ""
+        }
+    },
+    "individual": {
+        "hy30nq": {
+            "pub_key_id": "",
+            "team": "alpha"
+        }
+    }
+}

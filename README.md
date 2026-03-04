@@ -1,206 +1,205 @@
-# Git-based CTF
+# Git-based CTF v2.0
 
-Git-based CTF is a novel attack-and-defense CTF platform that can be easily
-hosted as an in-course activity proposed in our [paper](https://www.usenix.org/system/files/conference/ase18/ase18-paper_wi.pdf) at USENIX ASE. This
-repository contains [scripts](scripts) for automating ```Git-based CTF```. To
-see how to configure and play Git-based CTF, see the followings.
+**A fully distributed, serverless attack-and-defense CTF framework.**
 
-**If you want to see the version covered in our
-[paper](https://www.usenix.org/system/files/conference/ase18/ase18-paper_wi.pdf)
-at USENIX ASE, please refer to [ase](../../tree/ase) branch.**
+All data lives on GitHub. No dedicated server required.  
+Based on the paper: [Git-based CTF (ASE 2018, KAIST SoftSec Lab)](ase18-paper_wi.pdf)
 
-# Setup
-## Requirement
+## Core Principle
 
-1. Instructors should modify the [`config.json`](scripts/config.json) file to
-   start with.
+> "Instructors in Git-based CTF **do not have to prepare a separate server** to run a CTF."
+> "Git-based CTF is a **fully distributed** CTF framework, which **does not have a dedicated web server**."
 
-1. Students need to obtain the [`config.json`](scripts/config.json) file
-   prepared by the instructors in Step 1.
+- **GitHub = single source of truth**: repos, issues, notifications, score.csv
+- **Docker = local only**: each participant builds/runs services and exploits on their own machine
+- **CLI scripts**: instructors and participants interact via command-line tools
+- **GPG encryption**: exploits are encrypted before submission as GitHub Issues
 
-1. Each team should prepare for a PGP public & private key pair in their own
-   machine. The teams' public keys should be distributed before the game begins.
+## Architecture
 
-1. Each student should install GPG and Docker on their own machine in
-   order to play CTF.
-
-## For Students
-
-Git-based CTF consists of three major steps: preparation, injection, and
-exercise. We provide a set of tools that help students play the CTF for each
-step.
-
-#### 1. Preparation Step
-
-In this step, you need to prepare a network service running in a Docker
-container. The final outcome of this step is a Git repository that contains a
-Dockerfile as well as source code for the service program. We provide several
-useful tools and scripts that help create such a service container.
-
-- We provide a template [Dockerfile](service_template), which can be used to
-  prepare a service application.
-
-- You can check whether a service repository is valid or not by running:
-    ```bash
-    ./gitctf.py verify service --team [TEAMNAME] --branch [BRANCH]
-    ```
-  The above command checks whether the BRANCH branch of the repository follows
-  the Git-based CTF convention.
-
-#### 2. Injection Step
-
-You should inject vulnerabilities into the service application prepared in the
-previous step. You should also provide a working exploit for each injected
-vulnerability as a proof. An exploit in Git-based CTF is a program running in a
-Docker container, and it should follow a specific format, e.g., it should be
-properly encrypted and signed. We provide several tools and scripts that help
-creating and verifying injected vulnerabilities and exploits.
-
-- You should write an exploit program/script using the template
-  [Dockerfile](exploit_template) we provided.
-
-- You can verify your exploit against a service of a specific version (i.e.,
-  specific branch). Assume that you have a local copy of a target service at
-  SRVDIR, and your exploit at EXPDIR. You can then run the following command to
-  test whether your exploit works within a SEC seconds against the BRANCH branch version of the
-  service:
-    ```bash
-    ./gitctf.py verify exploit --exploit [EXPDIR] --service-dir [SRVDIR] --branch [BRANCH] --timeout [SEC]
-    ```
-  Also, if you add the ```--encrypt``` option, you can encrypt the exploit when
-  it gets verified. You should upload (i.e. commit and push) this encrypted
-  exploit, which will be named as ```exploit_bugN.zip.pgp``` in the root
-  directory of each branch. Here, ```bugN``` is the corresponding branch name.
-
-- After uploading all the exploits, you can verify your submitted exploits
-  against each branch of your service, with the following command.
-
-    ```bash
-    ./gitctf.py verify injection --team [TEAMNAME]
-    ```
-
-#### 3. Exercise Step
-
-In this step, you finally play the actual CTF game. To attack other opponents,
-you should create an issue that contains an encrypted attack described in the
-previous step.
-
-- To prepare for an attack, you should create a zip file that has a directory
-  containing an exploit Dockerfile as well as an exploit script/program. You
-  then sign and encrypt the zipped directory, and submit it as an issue in the
-  target team's repository. Assuming that you have a local copy of a target
-  service at SRVDIR, and your exploit at EXPDIR, the following command will
-  perform these steps automatically.
-    ```bash
-    ./gitctf.py submit --exploit [EXPDIR] --service-dir [SRVDIR] --target [TEAMNAME]
-    ```
-
-- You can see issues in your own repository to check whether you are attacked by
-  other opponents. Since each issue is encrypted with your own key, you can
-  download the attack and replay it in your own local machine. Especially, you
-  may want to analyze how an unintended vulnerability is exploited. To verify
-  unintended exploit, you can use `gitctf.py verify exploit` command described
-  above.
-
-- You can also check your score with our tool. Assuming that the scoreboard
-  repository URL is properly given by `config.json` file, you can invoke the
-  following command to see the current score.
-    ```bash
-    ./gitctf.py score
-    ```
-  Note that the points you see from the above command may slightly differ from
-  the actual points computed at the instructor's machine, because this command
-  relies on the system time to compute the unintended points.
-  Also, This command automatically populates an HTML file `score.html` that
-  shows a graph representing score over time for each team or person.
-
-## For Instructors
-
-There should be a machine that is dedicated to evaluating the attacks in
-Git-based CTF. The machine needs to be time-synchronized with an NTP server.
-
-- Create the repository of scoreboard. You can check out an example
-  [scoreboard](https://github.com/KAIST-IS521/2018s-gitctf-score).
-
-- Click the `Watch` button in each team's service repository.
-
-- After the injection phase, you need to create a
-  [`config.json`](scripts/config.json) file, which describes the [basic
-  settings](#configuration) for a CTF.
-
-- After the injection phase, you need to fill the commit hash of N-th injected
-  bug of each team, with the following command.
-    ```bash
-    ./gitctf.py hash
-    ```
-
-- During the exercise phase, the machine should run the following command
-  assuming that you have a proper set-up for the ssh-agent and the gpg-agent,
-  because this command will invoke a series of `ssh` and `gpg` commands, and
-  such commands require a user to enter a passphrase.
-    ```bash
-    ./gitctf.py eval --token API_TOKEN
-    ```
-  This command will run in an infinite loop, automatically fetch issues from
-  the repositories, and update the scoreboard. This process will be killed when
-  CTF is finished.
-
-
-## Configuration
-
-[This file](scripts/config.json) contains critical information for managing
-Git-based CTF. This script must be created by an instructor, and distributed to
-students before a CTF begins. You can check out an [example configuration file](https://github.com/KAIST-IS521/2018-Spring/blob/master/Activities/config.json)
-
-##### The [config.json](scripts/config.json) file requires the following fields:
-
-1. `player`: Your GitHub ID.
-1. `player_team`: Your team name.
-1. `score_board`: The URL for the scoreboard repository.
-1. `repo_owner`: The name of the owner of the CTF repositories.
-1. `intended_pts`: Points for exploiting an intended vulnerability.
-1. `unintended_pts`: Points for exploiting an unintended vulnerability.
-1. `round_frequency`: How often will our system change the round? (in sec.)
-1. `start_time`: When does the exercise phase start? You should put a string in the ISO8601
-   format, e.g., you can use `date -Iseconds`.
-1. `end_time`: When does this CTF finish? You should put a string in the ISO8601
-   format.
-1. `exploit_timeout`: Timeout for exploit. (in sec.)
-    1. `exercise_phase`: Timeout when verify exploit in exercise phase.
-    1. `injection_phase`: Timeout when verify exploit in injection phase.
-1. `teams`: Participating teams' information.
-    1. `repo_name`: The URL for each team's service repository.
-    1. `pub_key_id`: The public key ID of the team.
-    1. `bugN`: The commit hash of the N-th injected bug of this team.
-1. `individual`: Participating individuals' information. Each field is separated
-   by participants' GitHub IDs.
-    1. `pub_key_id`: The public key ID of the individual.
-    1. `team`: Which team does this individual belong to?
-
-# Authors
-
-This research project has been conducted by [SoftSec Lab](https://softsec.kaist.ac.kr) at KAIST.
-
-* Seongil Wi
-* [Jaeseung Choi](https://softsec.kaist.ac.kr/~jschoi/)
-* [Sang Kil Cha](https://softsec.kaist.ac.kr/~sangkilc/)
-
-# Citing Git-based CTF
-
-To cite our paper:
 ```
-@INPROCEEDINGS{wi:usenixase:2018,
-    author = {SeongIl Wi and Jaeseung Choi and Sang Kil Cha},
-    title = {Git-based {CTF}: A Simple and Effective Approach to Organizing In-Course Attack-and-Defense Security Competition},
-    booktitle = {2018 {USENIX} Workshop on Advances in Security Education ({ASE} 18)},
-    year = {2018}
+┌─────────────────────────────────────────────────┐
+│                    GitHub                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
+│  │ Team1    │  │ Team2    │  │ Scoreboard   │  │
+│  │ Repo     │  │ Repo     │  │ Repo         │  │
+│  │ (code,   │  │ (code,   │  │ (score.csv)  │  │
+│  │  issues) │  │  issues) │  │              │  │
+│  └──────────┘  └──────────┘  └──────────────┘  │
+└──────────────────────┬──────────────────────────┘
+                       │ GitHub API
+        ┌──────────────┼──────────────┐
+        ▼              ▼              ▼
+  ┌──────────┐  ┌──────────┐  ┌──────────────┐
+  │ Student  │  │ Student  │  │ Instructor   │
+  │ Machine  │  │ Machine  │  │ Machine      │
+  │          │  │          │  │              │
+  │ gitctf   │  │ gitctf   │  │ gitctf eval  │
+  │ Docker   │  │ Docker   │  │ gitctf score │
+  │ GPG      │  │ GPG      │  │ Docker, GPG  │
+  └──────────┘  └──────────┘  └──────────────┘
+```
+
+## Prerequisites
+
+- Python 3.11+
+- Docker
+- Git
+- GPG
+- GitHub account + Personal Access Token (`repo`, `notifications` scopes)
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/YOUR_ORG/GitCTF.git
+cd GitCTF
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Edit config.json with your settings
+#    - Set player, player_team, repo_owner, teams, etc.
+
+# 4. Set your GitHub token
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+## Competition Workflow
+
+### Phase 1: Preparation
+Each team prepares a network service with a Dockerfile.
+
+```bash
+# Verify your service builds and runs
+python gitctf.py verify-service --team team1 --branch master --conf config.json
+```
+
+### Phase 2: Injection
+Each team injects N vulnerabilities into separate branches (bug1, bug2, ...).
+
+```bash
+# Verify injected vulnerabilities
+python gitctf.py verify-injection --team team1 --conf config.json
+
+# Verify your own exploit against your vulnerability
+python gitctf.py verify-exploit \
+  --exploit ./my-exploit/ \
+  --service-dir ./team1-service/ \
+  --branch bug1 \
+  --timeout 60 \
+  --encrypt \
+  --conf config.json
+```
+
+### Phase 3: Exercise (Attack & Defense)
+
+**Attack:**
+```bash
+# 1. Verify exploit works locally
+python gitctf.py verify-exploit \
+  --exploit ./exploit/ \
+  --service-dir ./target-service/ \
+  --branch bug1 \
+  --timeout 60 \
+  --conf config.json
+
+# 2. Submit as encrypted GitHub Issue
+python gitctf.py submit \
+  --exploit ./exploit/ \
+  --service-dir ./target-service/ \
+  --branch bug1 \
+  --target team2 \
+  --conf config.json
+```
+
+**Defense:**
+Fix unintended vulnerabilities, push patches to master branch.
+
+**View Scoreboard:**
+```bash
+python gitctf.py score --conf config.json
+# Generates score.html with time-series graph
+```
+
+## Instructor Commands
+
+```bash
+# Setup CTF environment (create repos on GitHub)
+python gitctf.py setup --admin-conf .config.json --token ghp_xxx
+
+# Auto-grade: poll GitHub for new submissions and verify
+python gitctf.py eval --conf config.json --token ghp_xxx
+
+# Get commit hashes for all teams
+python gitctf.py hash --conf config.json --token ghp_xxx
+```
+
+## Project Structure
+
+```
+GitCTF/
+├── gitctf.py              # Main CLI entry point
+├── config.json            # Competition configuration
+├── requirements.txt       # Python dependencies
+├── lib/                   # Core modules
+│   ├── github_api.py      # GitHub API client (httpx)
+│   ├── git.py             # Local git operations
+│   ├── crypto.py          # GPG encrypt/decrypt
+│   ├── issue.py           # GitHub Issue operations
+│   ├── execute.py         # Docker service/exploit execution
+│   ├── verify_exploit.py  # Exploit verification engine
+│   ├── verify_service.py  # Service health check
+│   ├── verify_injection.py# Injection phase verification
+│   ├── verify_issue.py    # Issue-based exploit verification
+│   ├── submit.py          # Exploit submission via Issue
+│   ├── fetch.py           # Fetch & decrypt exploit from Issue
+│   ├── show_score.py      # Scoreboard (fetch from GitHub)
+│   ├── evaluate.py        # Auto-grading loop
+│   ├── get_hash.py        # Branch hash collector
+│   ├── setup_env.py       # CTF environment setup
+│   └── utils.py           # Shared utilities
+├── templates/
+│   └── skeletons/         # Starter code for services/exploits
+├── rulebook/              # Competition guides (instructor/student)
+└── _legacy/               # Original Python 2 implementation
+```
+
+## How Scoring Works
+
+1. Instructor runs `gitctf eval` which polls GitHub Notifications
+2. When a new Issue (exploit submission) is detected:
+   - Clone target repo locally
+   - Decrypt the exploit
+   - Build service in Docker, inject random flag
+   - Run exploit in Docker, check if it returns the flag
+   - Write result to `score.csv` in the scoreboard repo
+   - Push to GitHub
+3. Anyone can run `gitctf score` to fetch `score.csv` and see standings
+
+## Key Differences from v1.0
+
+- **Python 3.11+** (was Python 2.7)
+- **httpx** instead of raw requests (modern async-ready HTTP)
+- **Type hints** throughout
+- **Proper error handling** and cleanup
+- **`flag{...}` format** support (configurable)
+- **Structured CLI** with argparse subcommands
+- **Templates** for services and exploits
+
+## License
+
+Apache License 2.0
+
+## Citation
+
+```bibtex
+@inproceedings{gitctf2018,
+  title={Git-based CTF: A Simple and Effective Approach to Organizing
+         In-Course Attack-and-Defense Security Competition},
+  author={Wi, SeongIl and Choi, Jaeseung and Cha, Sang Kil},
+  booktitle={Proceedings of the 33rd IEEE/ACM International Conference
+             on Automated Software Engineering (ASE)},
+  year={2018}
 }
 ```
-
-# License
-
-This project is licensed under the [Apache License](LICENSE.md)
-
-# Acknowledgement
-
-We thank GitHub for providing unlimited free plan for organizing classes. We also thank HyungSeok Han and anonymous reviewers for their constructive feedback. This work was supported by Institute for Information & communications Technology Promotion (IITP) grant funded by the Korea government (MSIT)
