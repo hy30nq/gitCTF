@@ -8,8 +8,19 @@ import sys
 import os
 
 
+FLAG_PATH = "/var/ctf/flag"
+
+
+def read_flag():
+    try:
+        with open(FLAG_PATH) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "NO_FLAG"
+
+
 def main():
-    flag = os.environ.get("FLAG", "flag{default}")
+    flag = read_flag()
 
     print("=== CTF Service v1.0 ===")
     print("1. View message")

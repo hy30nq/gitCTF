@@ -1,7 +1,7 @@
 """GitCTF 웹 서비스 스켈레톤
 
 이 파일을 수정하여 서비스를 개발하세요.
-플래그는 환경변수 FLAG에서 읽습니다.
+플래그는 /var/ctf/flag 파일에서 읽습니다.
 """
 
 import os
@@ -9,7 +9,15 @@ import os
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-FLAG = os.environ.get("FLAG", "flag{default}")
+FLAG_PATH = "/var/ctf/flag"
+
+
+def read_flag():
+    try:
+        with open(FLAG_PATH) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "NO_FLAG"
 
 
 @app.route("/")
@@ -28,7 +36,7 @@ def get_data():
 def get_flag():
     # TODO: 이 엔드포인트에 인증을 추가하세요.
     # 현재는 누구나 플래그를 읽을 수 있습니다!
-    return jsonify({"flag": FLAG})
+    return jsonify({"flag": read_flag()})
 
 
 if __name__ == "__main__":

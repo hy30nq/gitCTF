@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV FLAG="flag{default_flag}"
+RUN mkdir -p /var/ctf && cp flag /var/ctf/flag 2>/dev/null || echo "default" > /var/ctf/flag
 
 EXPOSE 4000
 

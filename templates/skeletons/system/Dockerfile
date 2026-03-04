@@ -7,9 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY . .
 
-ENV FLAG="flag{default_flag}"
-
-RUN echo $FLAG > /flag.txt && chmod 400 /flag.txt
+RUN mkdir -p /var/ctf && cp flag /var/ctf/flag 2>/dev/null || echo "default" > /var/ctf/flag
 
 EXPOSE 4000
 
