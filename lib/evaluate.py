@@ -113,6 +113,15 @@ def write_message(info: dict, scoreboard_dir: str, pts: int) -> None:
 
 
 def commit_and_push(scoreboard_dir: str) -> bool:
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if token:
+        run_command(
+            f'git config credential.helper "!f() {{ echo password={token}; }}; f"',
+            scoreboard_dir,
+        )
+        run_command("git config user.email gitctf@local", scoreboard_dir)
+        run_command("git config user.name gitctf-grader", scoreboard_dir)
+
     _, _, r = run_command("git add score.csv", scoreboard_dir)
     if r != 0:
         print("[!] Failed to git add score.csv")
@@ -123,7 +132,6 @@ def commit_and_push(scoreboard_dir: str) -> bool:
         return False
     _, _, r = run_command("git push origin master", scoreboard_dir)
     if r != 0:
-        # Try main branch
         _, _, r = run_command("git push origin main", scoreboard_dir)
         if r != 0:
             print("[!] Failed to push score")
