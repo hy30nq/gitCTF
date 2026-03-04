@@ -1,0 +1,60 @@
+###############################################################################
+# Git-based CTF v2.0 — Docker Compose
+#
+# Architecture:
+#   - web:     Nginx serving the dashboard (GitHub Pages-style, static HTML/JS)
+#              All data fetched client-side from GitHub API (no backend server)
+#   - grader:  Auto-grading container running eval loop
+#              Polls GitHub notifications, verifies exploits via Docker, pushes scores
+#   - dind:    Docker-in-Docker for grader to build/run service & exploit containers
+#
+# Usage:
+#   cp .env.example .env   # fill in GITHUB_TOKEN
+#   docker compose up -d
+#
+# Data source: 100% GitHub (repos, issues, notifications, score.csv)
+# No database, no backend API server — faithful to the paper.
+###############################################################################
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  grader:
+    build:
+      context: .
+      dockerfile: docker/grader.Dockerfile
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - CONFIG_PATH=${CONFIG_PATH:-config.json}
+      - GRADER_MODE=${GRADER_MODE:-poll}
+      - DOCKER_HOST=tcp://dind:2375
+    volumes:
+      - ./config.json:/app/config.json:ro
+    depends_on:
+      dind:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dind:
+    image: docker:27-dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    restart: unless-stopped
