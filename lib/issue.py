@@ -17,8 +17,7 @@ def create_label(repo_owner: str, repo_name: str, label_name: str,
                  color: str, desc: str, github: GitHub) -> None:
     query = f"/repos/{repo_owner}/{repo_name}/labels"
     data = json.dumps({"name": label_name, "description": desc, "color": color})
-    if github.post(query, data) is None:
-        print(f"[*] Label '{label_name}' already exists")
+    github.post_quiet(query, data)
 
 
 def update_label(repo_owner: str, repo_name: str, issue_no: int,

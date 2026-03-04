@@ -39,8 +39,13 @@ def verify_issue(defender: str, repo_name: str, issue_no: int,
         f.write(content)
 
     mkdir(tmpdir)
-    decrypt_exploit(tmpfile, config, defender, tmpdir, submitter)
+    result = decrypt_exploit(tmpfile, config, defender, tmpdir, submitter)
     rmfile(tmpfile)
+
+    if result is None:
+        rmdir(tmpdir)
+        rmdir(repo_name)
+        return None, None, submitter, "GPG decryption failed"
 
     branches = list_branches(repo_name)
 

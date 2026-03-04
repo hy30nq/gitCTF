@@ -39,9 +39,13 @@ def setup_env(admin_conf: str, token: str | None = None) -> None:
             "description": f"Git-based CTF - {team_name} service repository",
         })
 
-        r = github.post(f"/orgs/{repo_owner}/repos", data)
+        r = github.post_quiet(f"/orgs/{repo_owner}/repos", data)
         if r is None:
-            print(f"  [*] Repo may already exist, skipping")
+            r = github.post("/user/repos", data)
+            if r is None:
+                print(f"  [*] Repo may already exist, skipping")
+            else:
+                print(f"  [*] Created successfully")
         else:
             print(f"  [*] Created successfully")
 

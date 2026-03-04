@@ -37,11 +37,13 @@ def exec_exploit(service_name: str, exploit_dir: str,
         return
 
     container_name = f"exploit-{service_name}-run"
+    run_command(f"docker rm -f {container_name} 2>/dev/null")
     print(f"[*] Running exploit against {ip}:{port} (timeout={timeout}s)")
     out, err, ret = run_command(
-        f"timeout {timeout} docker run --rm --name {container_name} "
-        f"--network host "
-        f"{exploit_image} {ip} {port}"
+        f"docker run --rm --name {container_name} "
+        f"--network host --stop-timeout {timeout} "
+        f"{exploit_image} {ip} {port}",
+        timeout=timeout + 10,
     )
     if ret != 0:
         print(f"[!] Exploit failed: {err}")

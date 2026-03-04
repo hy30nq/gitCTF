@@ -66,7 +66,7 @@ def cmd_score(args: argparse.Namespace) -> None:
 
 def cmd_eval(args: argparse.Namespace) -> None:
     from lib.evaluate import evaluate
-    evaluate(args.conf, args.token)
+    evaluate(args.conf, args.token, getattr(args, 'scan', False))
 
 
 def cmd_hash(args: argparse.Namespace) -> None:
@@ -76,7 +76,7 @@ def cmd_hash(args: argparse.Namespace) -> None:
 
 def cmd_setup(args: argparse.Namespace) -> None:
     from lib.setup_env import setup_env
-    setup_env(args.admin_conf, args.token)
+    setup_env(args.conf, args.token)
 
 
 def cmd_exec_service(args: argparse.Namespace) -> None:
@@ -146,8 +146,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # --- eval ---
     p = sub.add_parser("eval", help="[instructor] poll GitHub notifications and auto-grade")
-    p.add_argument("--token", required=True, help="GitHub token (required for eval)")
-    p.add_argument("--conf", default="config.json")
+    p.add_argument("--scan", action="store_true", default=False,
+                   help="one-shot scan mode: process all open exploit issues directly")
+    add_common(p)
     p.set_defaults(func=cmd_eval)
 
     # --- hash ---
@@ -157,8 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # --- setup ---
     p = sub.add_parser("setup", help="[instructor] setup CTF environment on GitHub")
-    p.add_argument("--admin-conf", default=".config.json")
-    p.add_argument("--token", default=None)
+    add_common(p)
     p.set_defaults(func=cmd_setup)
 
     # --- exec service ---

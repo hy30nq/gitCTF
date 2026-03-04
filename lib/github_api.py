@@ -85,6 +85,14 @@ class GitHub:
             expected,
         )
 
+    def post_quiet(self, query: str, data: str, expected: int = 201) -> Any:
+        """POST without printing error on failure."""
+        r = self._client.post(query, content=data,
+                              headers={"Content-Type": "application/json"})
+        if r.status_code == expected:
+            return r.json()
+        return None
+
     def patch(self, query: str, data: str | None) -> bool:
         r = self._client.patch(
             query,

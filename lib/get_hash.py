@@ -18,9 +18,9 @@ def get_hash(conf: str, token: str | None = None) -> None:
     repo_owner = config["repo_owner"]
 
     for team, info in config["teams"].items():
-        if team == "instructor":
-            continue
         repo_name = info["repo_name"]
+        if not repo_name or repo_name == "-":
+            continue
         print(f"\n[*] {team} ({repo_name})")
 
         r = github.get(f"/repos/{repo_owner}/{repo_name}/branches")

@@ -44,7 +44,12 @@ def failure_action(repo_owner: str, repo_name: str, issue_no: int,
 
 
 def get_target_repos(config: dict) -> list[str]:
-    return [config["teams"][t]["repo_name"] for t in config["teams"]]
+    repos = []
+    for t in config["teams"]:
+        name = config["teams"][t]["repo_name"]
+        if name and name != "-":
+            repos.append(name)
+    return repos
 
 
 def get_issues(target_repos: list[str], github: GitHub) -> tuple[list, int]:
@@ -70,8 +75,9 @@ def get_issues(target_repos: list[str], github: GitHub) -> tuple[list, int]:
     return issues, interval
 
 
-def mark_as_read(noti_id: str, github: GitHub) -> None:
-    github.patch(f"/notifications/threads/{noti_id}", None)
+def mark_as_read(noti_id: str | None, github: GitHub) -> None:
+    if noti_id:
+        github.patch(f"/notifications/threads/{noti_id}", None)
 
 
 def get_defender(config: dict, target_repo: str) -> str | None:
@@ -226,11 +232,55 @@ def start_eval(config: dict, github: GitHub) -> None:
     print("[*] Time is over!")
 
 
-def evaluate(conf: str, token: str) -> None:
+def scan_issues(target_repos: list[str], config: dict,
+                github: GitHub) -> list:
+    """Directly scan repos for open issues (no notification required)."""
+    repo_owner = config["repo_owner"]
+    issues = []
+    for repo_name in target_repos:
+        r = github.get(f"/repos/{repo_owner}/{repo_name}/issues?state=open&per_page=50")
+        if not r:
+            continue
+        for issue in r:
+            if issue.get("pull_request"):
+                continue
+            title = issue.get("title", "")
+            if not title.startswith("exploit-"):
+                continue
+            labels = [l["name"] for l in issue.get("labels", [])]
+            if "verified" in labels or "failed" in labels:
+                continue
+            num = issue["number"]
+            gen_time = iso8601_to_timestamp(issue["created_at"])
+            issues.append((repo_name, num, None, gen_time))
+    return issues
+
+
+def start_scan_eval(config: dict, github: GitHub) -> None:
+    """One-shot scan: process all unprocessed exploit issues."""
+    target_repos = get_target_repos(config)
+    scoreboard = prepare_scoreboard(config["score_board"])
+
+    issues = scan_issues(target_repos, config, github)
+    if not issues:
+        print("[*] No unprocessed exploit issues found.")
+        return
+
+    print(f"[*] Found {len(issues)} unprocessed issues.")
+    for repo, num, noti_id, gen_time in issues:
+        process_issue(repo, num, noti_id, config, gen_time, github, scoreboard)
+
+    print("[*] Scan evaluation complete.")
+
+
+def evaluate(conf: str, token: str, scan: bool = False) -> None:
     config = load_config(conf)
     token = resolve_token(token) or token
     if not token:
         print("[!] Token is required for eval")
         sys.exit(1)
     github = GitHub(config["player"], token)
-    start_eval(config, github)
+    if scan:
+        start_scan_eval(config, github)
+    else:
+        start_eval(config, github)
