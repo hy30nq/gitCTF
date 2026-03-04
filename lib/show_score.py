@@ -40,7 +40,14 @@ def update_deferred(score: dict, hist: dict, freq: float,
 
 
 def display_score(data: str, freq: float, unintended_pts: float,
-                  end_time: str, pin_time: float | None = None) -> dict | None:
+                  intended_pts: float, end_time: str,
+                  pin_time: float | None = None) -> dict | None:
+    """
+    Score calculation per the paper:
+      - Intended attacks: fixed points (intended_pts), awarded once
+      - Unintended attacks (pts=0 in CSV): accumulate unintended_pts every
+        freq seconds until the defender patches (defense record stops accumulation)
+    """
     reader = csv.reader(io.StringIO(data), delimiter=",")
     score: dict[str, int] = {}
     history: set[str] = set()
@@ -52,22 +59,27 @@ def display_score(data: str, freq: float, unintended_pts: float,
         t = float(row[0])
         attacker, defender, branch, kind = row[1], row[2], row[3], row[4]
         points = int(row[5])
-        attack_id = f"{attacker}_{defender}_{branch}"
-        event_id = f"{attack_id}_{kind}"
 
         if pin_time is not None and t >= pin_time:
             break
+
+        attack_id = f"{attacker}_{defender}_{branch}"
+        event_id = f"{attack_id}_{kind}"
+
         if event_id in history:
             continue
         history.add(event_id)
 
-        if attack_id in unint_hist and points == 0:
-            s = unint_hist[attack_id]
-            p = compute_unintended(s, t, freq, unintended_pts)
-            compute_score(score, attacker, p)
-            unint_hist.pop(attack_id, None)
+        if points > 0:
+            compute_score(score, attacker, points)
         else:
-            unint_hist[attack_id] = t
+            if attack_id in unint_hist:
+                s = unint_hist[attack_id]
+                p = compute_unintended(s, t, freq, unintended_pts)
+                compute_score(score, attacker, p)
+                unint_hist.pop(attack_id, None)
+            else:
+                unint_hist[attack_id] = t
 
     update_deferred(score, unint_hist, freq, unintended_pts, end_time)
 
@@ -134,9 +146,11 @@ def show_score(token: str | None, conf: str) -> None:
         print("[!] Cannot fetch score.csv")
         return
 
+    intended_pts = float(config.get("intended_pts", 10))
+
     csv_data = decode_content(r)
     print("[*] Current scoreboard:")
-    display_score(csv_data, freq, unintended_pts, end_time)
+    display_score(csv_data, freq, unintended_pts, intended_pts, end_time)
 
     graph_start = int(iso8601_to_timestamp(start_time))
     graph_end = (
@@ -147,7 +161,8 @@ def show_score(token: str | None, conf: str) -> None:
     log = {}
     hour = 0
     for i in range(graph_start, graph_end, 3600):
-        log[hour] = display_score(csv_data, freq, unintended_pts, end_time, float(i))
+        log[hour] = display_score(csv_data, freq, unintended_pts, intended_pts,
+                                  end_time, float(i))
         hour += 1
 
     make_html(log, config)

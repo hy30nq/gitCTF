@@ -28,7 +28,7 @@ from lib.issue import (
     is_closed, create_comment, close_issue,
     create_label, update_label, get_github_issue,
 )
-from lib.verify_issue import verify_issue
+from lib.verify_issue import verify_issue, UNINTENDED
 
 MSG_FILE = "msg"
 
@@ -168,11 +168,11 @@ def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
         print(f"[!] Unknown target repo: {repo_name}")
         return
 
-    branch, commit, attacker, log = verify_issue(
+    vuln_type, commit, attacker, log = verify_issue(
         defender, repo_name, num, config, github
     )
 
-    if branch is None:
+    if vuln_type is None:
         log_text = f"```\n{log}```"
         failure_action(repo_owner, repo_name, num,
                        log_text + "\n\n[*] The exploit did not work.",
@@ -185,20 +185,46 @@ def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
                        noti_id, github)
         return
 
+    is_unintended = (vuln_type == "unintended")
+
+    if is_unintended:
+        label_name, label_color = "unintended", "D93F0B"
+    else:
+        label_name, label_color = "intended", "0E8A16"
+
     create_label(repo_owner, repo_name, "verified", "9466CB",
                  "Successfully verified.", github)
+    create_label(repo_owner, repo_name, label_name, label_color,
+                 f"{'Unintended' if is_unintended else 'Intended'} vulnerability.", github)
     update_label(repo_owner, repo_name, num, github, "verified")
 
     info = {
         "attacker": attacker, "defender": defender,
-        "branch": branch, "bugkind": commit,
+        "branch": vuln_type, "bugkind": commit or "unknown",
     }
 
     sync_scoreboard(scoreboard)
-    unintended_pts = config["unintended_pts"]
-    write_score(gen_time, info, scoreboard, unintended_pts)
-    write_message(info, scoreboard, unintended_pts)
+
+    if is_unintended:
+        pts = 0
+        comment = (
+            f"[*] Verified: UNINTENDED vulnerability.\n"
+            f"Points will accumulate every {config['round_frequency']}s "
+            f"until {defender} patches the master branch."
+        )
+    else:
+        pts = config["intended_pts"]
+        comment = (
+            f"[*] Verified: INTENDED vulnerability ({vuln_type}).\n"
+            f"Score: +{pts} points."
+        )
+
+    write_score(gen_time, info, scoreboard, pts)
+    write_message(info, scoreboard, pts)
     commit_and_push(scoreboard)
+
+    create_comment(repo_owner, repo_name, num, comment, github)
+    close_issue(repo_owner, repo_name, num, github)
     mark_as_read(noti_id, github)
 
 
