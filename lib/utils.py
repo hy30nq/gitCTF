@@ -44,12 +44,17 @@ def project_root() -> str:
     return os.path.dirname(base_dir())
 
 
-def run_command(cmd: str, cwd: str | None = None) -> tuple[str, str, int]:
-    result = subprocess.run(
-        cmd, shell=True, cwd=cwd,
-        capture_output=True, text=True,
-    )
-    return result.stdout, result.stderr, result.returncode
+def run_command(cmd: str, cwd: str | None = None,
+                timeout: int | None = None) -> tuple[str, str, int]:
+    try:
+        result = subprocess.run(
+            cmd, shell=True, cwd=cwd,
+            capture_output=True, text=True,
+            timeout=timeout,
+        )
+        return result.stdout, result.stderr, result.returncode
+    except subprocess.TimeoutExpired:
+        return "", "Command timed out", 124
 
 
 def load_config(config_file: str) -> dict:

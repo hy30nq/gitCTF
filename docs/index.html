@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git-based CTF v2.0</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --orange: #d29922;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      text-align: center;
+      padding: 3rem 0 2rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    header p { color: var(--text-muted); font-size: 1.1rem; }
+    .logo-ascii {
+      font-family: 'Courier New', monospace;
+      font-size: 0.65rem;
+      line-height: 1.1;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+      white-space: pre;
+      display: inline-block;
+      text-align: left;
+    }
+
+    nav {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    nav button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    nav button:hover { border-color: var(--accent); }
+    nav button.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .tab { display: none; }
+    .tab.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+    .card h3 {
+      font-size: 1.1rem;
+      margin: 1.2rem 0 0.5rem;
+      color: var(--text);
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td {
+      padding: 0.7rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
+    tr:hover { background: rgba(88,166,255,0.05); }
+    .rank { color: var(--orange); font-weight: 700; }
+    .score { color: var(--green); font-weight: 700; font-size: 1.1rem; }
+
+    input, select, textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      width: 100%;
+      margin-bottom: 0.8rem;
+    }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover { background: #da3633; }
+
+    .alert {
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .alert-success { background: rgba(63,185,80,0.15); border: 1px solid var(--green); color: var(--green); }
+    .alert-error { background: rgba(248,81,73,0.15); border: 1px solid var(--red); color: var(--red); }
+    .alert-info { background: rgba(88,166,255,0.1); border: 1px solid var(--accent); color: var(--accent); }
+
+    code {
+      background: var(--bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      color: var(--orange);
+    }
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      margin: 0.8rem 0;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    pre code { background: none; padding: 0; color: var(--text); }
+
+    .step {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: flex-start;
+    }
+    .step-num {
+      background: var(--accent);
+      color: #000;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+      font-size: 0.9rem;
+    }
+    .step-content { flex: 1; }
+    .step-content p { margin-bottom: 0.5rem; }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .status-dot.online { background: var(--green); }
+    .status-dot.offline { background: var(--red); }
+
+    .token-display {
+      font-family: monospace;
+      word-break: break-all;
+      background: var(--bg);
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px dashed var(--border);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 0;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    #chart-container { width: 100%; height: 300px; margin-top: 1rem; }
+    .refresh-info { color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-ascii">   ___ _ _        _                        _     ___  _____  ___
+  / _ (_) |_     | |__   __ _ ___  ___  __| |   / __\/__   \/ __\
+ / /_\/ | __|____| '_ \ / _` / __|/ _ \/ _` |  / /     / /\/ _\
+/ /_\\| | ||_____| |_) | (_| \__ \  __/ (_| | / /___  / / / /
+\____/|_|\__|    |_.__/ \__,_|___/\___|\__,_| \____/  \/  \/
+                                                        v2.0</div>
+      <h1>Git-based CTF</h1>
+      <p>Fully Distributed, Serverless Attack-and-Defense CTF Framework</p>
+    </header>
+
+    <nav>
+      <button class="active" onclick="showTab('scoreboard')">Scoreboard</button>
+      <button onclick="showTab('token')">Token Setup</button>
+      <button onclick="showTab('guide')">Quick Start</button>
+      <button onclick="showTab('teams')">Teams</button>
+      <button onclick="showTab('issues')">Attacks</button>
+    </nav>
+
+    <!-- SCOREBOARD TAB -->
+    <div id="tab-scoreboard" class="tab active">
+      <div class="card">
+        <h2>Live Scoreboard</h2>
+        <div class="alert alert-info">
+          <span class="status-dot online"></span>
+          Scoreboard repo: <a href="" id="score-repo-link" style="color:var(--accent)"></a>
+          <span class="refresh-info" id="last-refresh"></span>
+        </div>
+        <div id="chart-container">
+          <canvas id="scoreChart"></canvas>
+        </div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Player</th><th>Score</th><th>Attacks</th></tr>
+          </thead>
+          <tbody id="score-body">
+            <tr><td colspan="4" style="color:var(--text-muted);text-align:center">Loading...</td></tr>
+          </tbody>
+        </table>
+        <button class="btn" onclick="fetchScoreboard()" style="margin-top:1rem">Refresh</button>
+      </div>
+    </div>
+
+    <!-- TOKEN SETUP TAB -->
+    <div id="tab-token" class="tab">
+      <div class="card">
+        <h2>GitHub Token Setup</h2>
+        <p style="color:var(--text-muted);margin-bottom:1rem">
+          GitCTF requires a GitHub Personal Access Token (PAT) to interact with repositories.
+          Your token is stored <strong>locally in your browser only</strong> and never sent to any server.
+        </p>
+
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <p><strong>GitHub PAT 생성하기</strong></p>
+            <p>GitHub Settings &rarr; Developer Settings &rarr; Personal Access Tokens &rarr; Tokens (classic)</p>
+            <p><a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--accent)">직접 이동하기 &rarr;</a></p>
+            <p>필요 권한: <code>repo</code>, <code>notifications</code></p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <p><strong>토큰 저장</strong></p>
+            <label for="gh-token">GitHub Personal Access Token</label>
+            <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+            <div class="grid-2">
+              <div>
+                <label for="gh-user">GitHub Username</label>
+                <input type="text" id="gh-user" placeholder="your-github-id">
+              </div>
+              <div>
+                <label for="gh-owner">Repository Owner (Org)</label>
+                <input type="text" id="gh-owner" placeholder="hy30nq">
+              </div>
+            </div>
+            <label for="gh-scoreboard">Scoreboard Repo URL</label>
+            <input type="text" id="gh-scoreboard" placeholder="https://github.com/hy30nq/gitctf-scoreboard">
+            <button class="btn" onclick="saveToken()">Save to Browser</button>
+            <button class="btn btn-danger" onclick="clearToken()" style="margin-left:0.5rem">Clear</button>
+            <div id="token-status" style="margin-top:0.8rem"></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <p><strong>CLI에서 사용하기</strong></p>
+            <pre><code># 환경변수로 설정 (권장)
+export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx"
+
+# 또는 명령어마다 --token 옵션 사용
+python3 gitctf.py hash --token "ghp_xxx..." --conf config.json</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <p><strong>Token 검증</strong></p>
+            <button class="btn" onclick="verifyToken()">Verify Token</button>
+            <div id="verify-result" style="margin-top:0.8rem"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>config.json 생성기</h2>
+        <p style="color:var(--text-muted);margin-bottom:1rem">
+          위에서 설정한 정보로 config.json을 자동 생성합니다.
+        </p>
+        <button class="btn" onclick="generateConfig()">Generate config.json</button>
+        <pre id="config-output" style="display:none;margin-top:1rem"><code></code></pre>
+      </div>
+    </div>
+
+    <!-- GUIDE TAB -->
+    <div id="tab-guide" class="tab">
+      <div class="card">
+        <h2>Quick Start Guide</h2>
+
+        <h3>Prerequisites</h3>
+        <ul style="color:var(--text-muted);padding-left:1.5rem;margin-bottom:1rem">
+          <li>Python 3.11+</li>
+          <li>Docker</li>
+          <li>Git</li>
+          <li>GPG (optional, for encrypted submissions)</li>
+          <li>GitHub account with PAT token</li>
+        </ul>
+
+        <h3>Installation</h3>
+        <pre><code>git clone https://github.com/hy30nq/gitCTF.git
+cd gitCTF
+pip install -r requirements.txt
+export GITHUB_TOKEN="your_token_here"</code></pre>
+
+        <h3>참가자 워크플로우</h3>
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <p><strong>서비스 확인</strong> — 상대팀 서비스가 정상 동작하는지 확인</p>
+            <pre><code>python3 gitctf.py verify-service --team alpha --branch main \
+  --conf config.json</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <p><strong>익스플로잇 작성</strong> — 서비스의 취약점을 공격하는 Docker 기반 익스플로잇 작성</p>
+            <pre><code># templates/skeletons/exploit/ 를 복사해서 시작
+cp -r templates/skeletons/exploit/ my-exploit/
+# exploit.py 수정 후 테스트</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <p><strong>익스플로잇 검증</strong> — 로컬에서 자동 검증 실행</p>
+            <pre><code>python3 gitctf.py verify-exploit --exploit ./my-exploit \
+  --service-dir ./target-service --branch bug1 --conf config.json</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <p><strong>제출</strong> — 검증 통과 시 GitHub Issue로 제출</p>
+            <pre><code>python3 gitctf.py submit --exploit ./my-exploit \
+  --service-dir ./target-service --branch bug1 \
+  --target alpha --conf config.json</code></pre>
+          </div>
+        </div>
+
+        <h3>강사 워크플로우</h3>
+        <pre><code># 환경 초기 설정
+python3 gitctf.py setup --conf config.json
+
+# 커밋 해시 확인
+python3 gitctf.py hash --conf config.json
+
+# 자동 채점 시작
+python3 gitctf.py eval --conf config.json
+
+# 점수 확인
+python3 gitctf.py score --conf config.json</code></pre>
+      </div>
+
+      <div class="card">
+        <h2>Git 튜토리얼</h2>
+        <pre><code># 저장소 복제
+git clone https://github.com/ORG/your-team-repo.git
+
+# 브랜치 생성 및 이동
+git checkout -b bug1
+
+# 변경사항 커밋
+git add .
+git commit -m "your message"
+git push origin bug1</code></pre>
+      </div>
+
+      <div class="card">
+        <h2>Docker 튜토리얼</h2>
+        <pre><code># 이미지 빌드
+docker build -t my-service .
+
+# 컨테이너 실행
+docker run -d -p 4000:4000 my-service
+
+# 컨테이너 확인
+docker ps
+
+# 컨테이너 종료
+docker rm -f $(docker ps -q)</code></pre>
+      </div>
+    </div>
+
+    <!-- TEAMS TAB -->
+    <div id="tab-teams" class="tab">
+      <div class="card">
+        <h2>Team Repositories</h2>
+        <div id="teams-list">
+          <p style="color:var(--text-muted)">Loading teams...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATTACKS TAB -->
+    <div id="tab-issues" class="tab">
+      <div class="card">
+        <h2>Recent Attacks</h2>
+        <p style="color:var(--text-muted);margin-bottom:1rem">All exploit submissions are GitHub Issues.</p>
+        <div id="issues-list">
+          <p style="color:var(--text-muted)">Loading...</p>
+        </div>
+        <button class="btn" onclick="fetchIssues()" style="margin-top:1rem">Refresh</button>
+      </div>
+    </div>
+
+    <footer>
+      <p>Git-based CTF v2.0 &mdash; Based on <a href="#">ASE'18 paper</a> by SeongIl Wi, Jaeseung Choi, Sang Kil Cha (KAIST)</p>
+      <p style="margin-top:0.3rem">All data stored on GitHub. No dedicated server.</p>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>
+    const LS_KEY = 'gitctf_config';
+    let scoreChart = null;
+
+    function getConfig() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
+    }
+    function setConfig(c) { localStorage.setItem(LS_KEY, JSON.stringify(c)); }
+
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      event.target.classList.add('active');
+
+      if (name === 'scoreboard') fetchScoreboard();
+      if (name === 'teams') fetchTeams();
+      if (name === 'issues') fetchIssues();
+    }
+
+    function saveToken() {
+      const token = document.getElementById('gh-token').value.trim();
+      const user = document.getElementById('gh-user').value.trim();
+      const owner = document.getElementById('gh-owner').value.trim();
+      const sb = document.getElementById('gh-scoreboard').value.trim();
+      if (!token) { showStatus('token-status', 'Token is required', 'error'); return; }
+      setConfig({ token, user, owner, scoreboard: sb });
+      showStatus('token-status', 'Token saved to browser localStorage', 'success');
+    }
+
+    function clearToken() {
+      localStorage.removeItem(LS_KEY);
+      document.getElementById('gh-token').value = '';
+      document.getElementById('gh-user').value = '';
+      showStatus('token-status', 'Token cleared', 'success');
+    }
+
+    function showStatus(id, msg, type) {
+      const el = document.getElementById(id);
+      el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+
+    async function ghFetch(path) {
+      const c = getConfig();
+      if (!c.token) return null;
+      const resp = await fetch('https://api.github.com' + path, {
+        headers: { 'Authorization': 'token ' + c.token, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (!resp.ok) return null;
+      return resp.json();
+    }
+
+    async function verifyToken() {
+      const c = getConfig();
+      if (!c.token) { showStatus('verify-result', 'No token saved', 'error'); return; }
+      try {
+        const r = await ghFetch('/user');
+        if (r && r.login) {
+          showStatus('verify-result',
+            `Token valid. Logged in as <strong>${r.login}</strong> (${r.name || ''})`, 'success');
+        } else {
+          showStatus('verify-result', 'Token invalid or expired', 'error');
+        }
+      } catch(e) {
+        showStatus('verify-result', 'Network error: ' + e.message, 'error');
+      }
+    }
+
+    function generateConfig() {
+      const c = getConfig();
+      const config = {
+        player: c.user || 'your-github-id',
+        player_team: 'instructor',
+        score_board: c.scoreboard || 'https://github.com/hy30nq/gitctf-scoreboard',
+        repo_owner: c.owner || 'hy30nq',
+        intended_pts: 10,
+        unintended_pts: 100,
+        round_frequency: 600,
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 30*24*3600*1000).toISOString(),
+        exploit_timeout: { injection_phase: 10, exercise_phase: 60 },
+        teams: {},
+        individual: {}
+      };
+      const el = document.getElementById('config-output');
+      el.style.display = 'block';
+      el.querySelector('code').textContent = JSON.stringify(config, null, 2);
+    }
+
+    async function fetchScoreboard() {
+      const c = getConfig();
+      if (!c.scoreboard) {
+        document.getElementById('score-body').innerHTML =
+          '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">Set scoreboard URL in Token Setup</td></tr>';
+        return;
+      }
+      const repoPath = c.scoreboard.replace('https://github.com/', '');
+      document.getElementById('score-repo-link').href = c.scoreboard;
+      document.getElementById('score-repo-link').textContent = repoPath;
+
+      try {
+        const r = await ghFetch(`/repos/${repoPath}/contents/score.csv`);
+        if (!r || !r.content) {
+          document.getElementById('score-body').innerHTML =
+            '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No scores yet</td></tr>';
+          return;
+        }
+
+        const csv = atob(r.content.replace(/\n/g, ''));
+        const lines = csv.trim().split('\n').filter(l => l.trim());
+        const scores = {};
+        const attacks = {};
+
+        lines.forEach(line => {
+          const [ts, attacker, defender, branch, kind, pts] = line.split(',');
+          const p = parseInt(pts) || 0;
+          scores[attacker] = (scores[attacker] || 0) + p;
+          attacks[attacker] = (attacks[attacker] || 0) + 1;
+        });
+
+        const sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+        let html = '';
+        sorted.forEach(([name, score], i) => {
+          html += `<tr>
+            <td class="rank">${i+1}</td>
+            <td>${name}</td>
+            <td class="score">${score}</td>
+            <td>${attacks[name] || 0}</td>
+          </tr>`;
+        });
+        if (!html) html = '<tr><td colspan="4" style="color:var(--text-muted);text-align:center">No scores yet</td></tr>';
+        document.getElementById('score-body').innerHTML = html;
+        document.getElementById('last-refresh').textContent = ` (Updated: ${new Date().toLocaleTimeString()})`;
+
+        updateChart(lines);
+      } catch(e) {
+        document.getElementById('score-body').innerHTML =
+          `<tr><td colspan="4" style="color:var(--red)">${e.message}</td></tr>`;
+      }
+    }
+
+    function updateChart(lines) {
+      const data = {};
+      const allPlayers = new Set();
+
+      lines.forEach(line => {
+        const [ts, attacker, , , , pts] = line.split(',');
+        allPlayers.add(attacker);
+        const t = new Date(parseInt(ts) * 1000);
+        const key = `${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:00`;
+        if (!data[key]) data[key] = {};
+        data[key][attacker] = (data[key][attacker] || 0) + (parseInt(pts) || 0);
+      });
+
+      const labels = Object.keys(data);
+      const players = [...allPlayers];
+      const colors = ['#58a6ff','#3fb950','#f85149','#d29922','#bc8cff','#f778ba'];
+
+      const datasets = players.map((p, i) => {
+        let cumulative = 0;
+        return {
+          label: p,
+          data: labels.map(l => { cumulative += (data[l][p] || 0); return cumulative; }),
+          borderColor: colors[i % colors.length],
+          backgroundColor: colors[i % colors.length] + '20',
+          fill: true,
+          tension: 0.3,
+        };
+      });
+
+      if (scoreChart) scoreChart.destroy();
+      scoreChart = new Chart(document.getElementById('scoreChart'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e6edf3' } } },
+          scales: {
+            x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+            y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    async function fetchTeams() {
+      const c = getConfig();
+      if (!c.owner || !c.token) {
+        document.getElementById('teams-list').innerHTML =
+          '<p style="color:var(--text-muted)">Set token and owner in Token Setup tab</p>';
+        return;
+      }
+      try {
+        const repos = await ghFetch(`/users/${c.owner}/repos?per_page=50&sort=updated`);
+        if (!repos) return;
+        const ctfRepos = repos.filter(r => r.name.startsWith('gitctf-team'));
+        let html = '<table><thead><tr><th>Team</th><th>Repo</th><th>Last Updated</th><th>Branches</th></tr></thead><tbody>';
+        for (const repo of ctfRepos) {
+          const branches = await ghFetch(`/repos/${c.owner}/${repo.name}/branches`);
+          const bNames = branches ? branches.map(b => `<code>${b.name}</code>`).join(', ') : '-';
+          html += `<tr>
+            <td>${repo.name.replace('gitctf-team-','')}</td>
+            <td><a href="${repo.html_url}" target="_blank" style="color:var(--accent)">${repo.name}</a></td>
+            <td>${new Date(repo.updated_at).toLocaleDateString('ko-KR')}</td>
+            <td>${bNames}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+        document.getElementById('teams-list').innerHTML = html;
+      } catch(e) {
+        document.getElementById('teams-list').innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+      }
+    }
+
+    async function fetchIssues() {
+      const c = getConfig();
+      if (!c.owner || !c.token) {
+        document.getElementById('issues-list').innerHTML =
+          '<p style="color:var(--text-muted)">Set token and owner in Token Setup tab</p>';
+        return;
+      }
+      try {
+        const repos = await ghFetch(`/users/${c.owner}/repos?per_page=50`);
+        if (!repos) return;
+        const ctfRepos = repos.filter(r => r.name.startsWith('gitctf-team'));
+        let allIssues = [];
+        for (const repo of ctfRepos) {
+          const issues = await ghFetch(`/repos/${c.owner}/${repo.name}/issues?state=all&per_page=10`);
+          if (issues) {
+            issues.forEach(i => { i._repo = repo.name; });
+            allIssues = allIssues.concat(issues);
+          }
+        }
+        allIssues.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+        let html = '<table><thead><tr><th>Target</th><th>Title</th><th>Attacker</th><th>Status</th><th>Time</th></tr></thead><tbody>';
+        allIssues.forEach(i => {
+          const status = i.state === 'closed'
+            ? '<span style="color:var(--red)">Closed</span>'
+            : '<span style="color:var(--green)">Open</span>';
+          const labels = (i.labels || []).map(l =>
+            `<span style="background:#${l.color};color:#000;padding:2px 6px;border-radius:4px;font-size:0.75rem">${l.name}</span>`
+          ).join(' ');
+          html += `<tr>
+            <td>${i._repo.replace('gitctf-team-','')}</td>
+            <td><a href="${i.html_url}" target="_blank" style="color:var(--accent)">${i.title}</a> ${labels}</td>
+            <td>${i.user.login}</td>
+            <td>${status}</td>
+            <td>${new Date(i.created_at).toLocaleString('ko-KR')}</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        if (!allIssues.length) html = '<p style="color:var(--text-muted)">No attacks submitted yet.</p>';
+        document.getElementById('issues-list').innerHTML = html;
+      } catch(e) {
+        document.getElementById('issues-list').innerHTML = `<p style="color:var(--red)">${e.message}</p>`;
+      }
+    }
+
+    // Load saved config on page load
+    window.addEventListener('load', () => {
+      const c = getConfig();
+      if (c.token) document.getElementById('gh-token').value = c.token;
+      if (c.user) document.getElementById('gh-user').value = c.user;
+      if (c.owner) document.getElementById('gh-owner').value = c.owner;
+      if (c.scoreboard) document.getElementById('gh-scoreboard').value = c.scoreboard;
+      fetchScoreboard();
+    });
+  </script>
+</body>
+</html>

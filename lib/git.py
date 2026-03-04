@@ -13,8 +13,14 @@ def clone(repo_owner: str, repo_name: str, is_private: bool = True,
           dest: str | None = None) -> None:
     target = dest or repo_name
     rmdir(target)
-    protocol = "git@github.com:" if is_private else "https://github.com/"
-    url = f"{protocol}{repo_owner}/{repo_name}.git"
+    import os
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if token:
+        url = f"https://{token}@github.com/{repo_owner}/{repo_name}.git"
+    elif is_private:
+        url = f"git@github.com:{repo_owner}/{repo_name}.git"
+    else:
+        url = f"https://github.com/{repo_owner}/{repo_name}.git"
     _, err, ret = run_command(f"git clone {url} {target}")
     if ret != 0:
         print(f"[!] git clone failed: {err}")
