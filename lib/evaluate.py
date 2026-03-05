@@ -23,7 +23,7 @@ from lib.utils import (
     is_timeover, resolve_token,
 )
 from lib.github_api import GitHub, get_github_path
-from lib.git import clone, get_next_commit_hash
+from lib.git import clone, get_next_commit_hash, checkout
 from lib.issue import (
     is_closed, create_comment, close_issue,
     create_label, update_label, get_github_issue,
@@ -158,7 +158,72 @@ def find_last_attack(scoreboard_dir: str, timestamp: float,
     return last_commit
 
 
-def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
+def get_next_commit(last_commit: str, defender: str, branch: str,
+                    config: dict) -> str | None:
+    """Clone the defender's repo and find the commit after last_commit."""
+    repo_name = config["teams"][defender]["repo_name"]
+    rmdir(repo_name)
+    clone(config["repo_owner"], repo_name)
+    next_hash = get_next_commit_hash(repo_name, branch, last_commit)
+    rmdir(repo_name)
+    return next_hash if next_hash else None
+
+
+def process_unintended(repo_name: str, num: int, config: dict,
+                       gen_time: float, info: dict, scoreboard: str,
+                       noti_id: str | None, github: GitHub,
+                       repo_owner: str) -> None:
+    """Handle unintended vulnerability scoring with defense checking.
+
+    Per the paper (Section 3.3):
+      "we periodically award points to participants who have successfully
+       exploited an unintended vulnerability until it is fixed by the
+       defending team."
+
+    This function checks if the defender has pushed patches since the last
+    attack. For each new commit, it re-runs the exploit:
+      - If exploit fails → defender successfully patched (defense record)
+      - If exploit still works → award points and continue checking
+    """
+    unintended_pts = config["unintended_pts"]
+    target_commit = find_last_attack(scoreboard, gen_time, info)
+
+    if target_commit is None:
+        write_score(gen_time, info, scoreboard, unintended_pts)
+        write_message(info, scoreboard, unintended_pts)
+        commit_and_push(scoreboard)
+    else:
+        while True:
+            target_commit = get_next_commit(
+                target_commit, info["defender"], info["branch"], config
+            )
+            if target_commit is None:
+                print("[*] No more commits to verify against")
+                break
+
+            _, verified_commit, _, _ = verify_issue(
+                info["defender"], repo_name, num, config, github,
+                target_commit
+            )
+            info["bugkind"] = target_commit
+
+            if verified_commit is None:
+                current_time = int(time.time())
+                write_score(current_time, info, scoreboard, 0)
+                write_message(info, scoreboard, 0)
+                commit_and_push(scoreboard)
+                mark_as_read(noti_id, github)
+                create_label(repo_owner, repo_name, "defended", "0000ff",
+                             "Defended.", github)
+                update_label(repo_owner, repo_name, num, github, "defended")
+                break
+            else:
+                write_score(gen_time, info, scoreboard, unintended_pts)
+                write_message(info, scoreboard, unintended_pts)
+                commit_and_push(scoreboard)
+
+
+def process_issue(repo_name: str, num: int, noti_id: str | None, config: dict,
                   gen_time: float, github: GitHub,
                   scoreboard: str) -> None:
     repo_owner = config["repo_owner"]
@@ -193,7 +258,7 @@ def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
                        noti_id, github)
         return
 
-    is_unintended = (vuln_type == "unintended")
+    is_unintended = (vuln_type == UNINTENDED)
 
     if is_unintended:
         label_name, label_color = "unintended", "D93F0B"
@@ -203,7 +268,8 @@ def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
     create_label(repo_owner, repo_name, "verified", "9466CB",
                  "Successfully verified.", github)
     create_label(repo_owner, repo_name, label_name, label_color,
-                 f"{'Unintended' if is_unintended else 'Intended'} vulnerability.", github)
+                 f"{'Unintended' if is_unintended else 'Intended'} vulnerability.",
+                 github)
     update_label(repo_owner, repo_name, num, github, "verified")
 
     info = {
@@ -214,7 +280,8 @@ def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
     sync_scoreboard(scoreboard)
 
     if is_unintended:
-        pts = 0
+        process_unintended(repo_name, num, config, gen_time, info,
+                           scoreboard, noti_id, github, repo_owner)
         comment = (
             f"[*] Verified: UNINTENDED vulnerability.\n"
             f"Points will accumulate every {config['round_frequency']}s "
@@ -222,14 +289,13 @@ def process_issue(repo_name: str, num: int, noti_id: str, config: dict,
         )
     else:
         pts = config["intended_pts"]
+        write_score(gen_time, info, scoreboard, pts)
+        write_message(info, scoreboard, pts)
+        commit_and_push(scoreboard)
         comment = (
             f"[*] Verified: INTENDED vulnerability ({vuln_type}).\n"
             f"Score: +{pts} points."
         )
-
-    write_score(gen_time, info, scoreboard, pts)
-    write_message(info, scoreboard, pts)
-    commit_and_push(scoreboard)
 
     create_comment(repo_owner, repo_name, num, comment, github)
     close_issue(repo_owner, repo_name, num, github)
