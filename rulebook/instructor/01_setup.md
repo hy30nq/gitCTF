@@ -1,61 +1,112 @@
-# 관리자 가이드 — 1. 환경 설정
+# 강사 가이드 1: 환경 설정
 
-## 사전 요구사항
+## 사전 준비
 
-- Python 3.11+
-- Docker Desktop
-- Git
-- GPG
-- GitHub 조직(Organization) 또는 개인 계정
-- GitHub Personal Access Token (`repo`, `notifications` 권한)
+1. **GitHub 계정** + Personal Access Token (PAT)
+   - https://github.com/settings/tokens/new
+   - 필요 권한: `repo`, `notifications`, `admin:org` (조직 사용 시)
 
-## 빠른 시작
+2. **GPG 키 페어 생성**
+   ```bash
+   gpg --full-generate-key
+   # RSA, 4096bit 권장
+   gpg --list-keys  # 키 ID 확인
+   ```
+
+3. **config.json 작성**
+   ```json
+   {
+     "player": "your-github-id",
+     "player_team": "instructor",
+     "score_board": "https://github.com/your-org/scoreboard",
+     "repo_owner": "your-org",
+     "intended_pts": 10,
+     "unintended_pts": 100,
+     "round_frequency": 600,
+     "start_time": "2026-03-10T09:00:00+09:00",
+     "end_time": "2026-03-24T18:00:00+09:00",
+     "exploit_timeout": {
+       "injection_phase": 10,
+       "exercise_phase": 60
+     },
+     "teams": { ... },
+     "individual": { ... }
+   }
+   ```
+
+## 환경 설정
+
+### 방법 1: Docker Compose (권장)
 
 ```bash
-# 1. 프로젝트 클론
-git clone https://github.com/YOUR_ORG/GitCTF.git
-cd GitCTF
+git clone https://github.com/hy30nq/gitCTF.git
+cd gitCTF
+cp .env.example .env
+# .env에 GITHUB_TOKEN 입력
+docker compose up -d
+```
 
-# 2. Python 의존성 설치
+- 웹 대시보드: http://localhost:8080
+- 자동 채점기가 백그라운드에서 실행됨
+
+### 방법 2: 로컬 CLI
+
+```bash
 pip install -r requirements.txt
+export GITHUB_TOKEN=ghp_xxx
 
-# 3. 환경변수 설정
-export GITHUB_TOKEN=ghp_your_token_here
+# GitHub 레포 생성
+python3 gitctf.py setup --conf config.json
 
-# 4. config.json 편집
-# 팀 정보, 저장소명, GPG 키 ID 등을 설정
-
-# 5. CTF 환경 구축 (GitHub 저장소 생성)
-python gitctf.py setup --admin-conf .config.json --token $GITHUB_TOKEN
+# 자동 채점 시작
+python3 gitctf.py eval --conf config.json
 ```
 
-## 핵심 원칙
+## 대회 진행 순서
 
-**서버가 필요 없습니다.** 모든 데이터는 GitHub에 저장됩니다.
-
-- 서비스 코드 → 각 팀의 GitHub 저장소
-- 공격 제출 → GitHub Issue (GPG 암호화)
-- 점수판 → 별도의 GitHub 저장소에 score.csv로 저장
-- 채점 → 관리자가 자신의 머신에서 `gitctf eval` 실행
-
-## 채점 시작
-
+### 1단계: 환경 초기화
 ```bash
-# 자동 채점 루프 시작 (GitHub Notification 폴링)
-python gitctf.py eval --conf config.json --token $GITHUB_TOKEN
+python3 gitctf.py setup --conf config.json
 ```
+- 각 팀의 GitHub 레포 생성 (private)
+- 팀원을 collaborator로 추가 (수동)
 
-이 스크립트는:
-1. GitHub Notification에서 새 Issue(공격 제출)를 감지
-2. 대상 서비스를 로컬 Docker에서 빌드/실행
-3. 제출된 익스플로잇을 복호화 후 Docker에서 실행
-4. 플래그 일치 여부 확인
-5. 결과를 score.csv에 기록, GitHub에 푸시
+### 2단계: 준비 단계 (Preparation)
+- 각 팀이 서비스 + Dockerfile 준비
+- 강사가 서비스 검증:
+  ```bash
+  python3 gitctf.py verify-service --team alpha --branch master
+  ```
 
-## 점수 확인
+### 3단계: 주입 단계 (Injection)
+- 각 팀이 bug 브랜치에 취약점 주입 + 암호화된 exploit 커밋
+- 강사가 주입 검증:
+  ```bash
+  python3 gitctf.py verify-injection --team alpha
+  ```
+- 커밋 해시 기록:
+  ```bash
+  python3 gitctf.py hash --conf config.json
+  ```
+  → config.json의 `bug1`, `bug2` 등에 해시 입력
 
+### 4단계: 공격/방어 단계 (Exercise)
+- 레포를 public으로 전환
+- 자동 채점 시작:
+  ```bash
+  python3 gitctf.py eval --conf config.json
+  # 또는 docker compose up -d (grader 서비스)
+  ```
+
+### 5단계: 결과 확인
 ```bash
-python gitctf.py score --conf config.json
-# → 터미널에 현재 점수 출력
-# → score.html 파일 생성 (시간별 그래프)
+python3 gitctf.py score --conf config.json
+# → score.html 생성
 ```
+
+## 주의사항
+
+- `config.json`에 instructor의 `repo_name`은 `"-"`로 설정
+- GPG 공개키를 모든 팀과 공유해야 함
+- 대회 시간(`start_time`, `end_time`)을 정확히 설정
+- `round_frequency`는 unintended 점수 누적 주기 (초 단위)
